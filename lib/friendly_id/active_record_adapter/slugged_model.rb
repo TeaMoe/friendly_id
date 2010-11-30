@@ -15,7 +15,7 @@ module FriendlyId
           extend FriendlyId::ActiveRecordAdapter::Finders unless FriendlyId.on_ar3?
           define_method("#{friendly_id_config.method}=") do |*args|
             #p 'setter'
-            super
+            super *args
             build_a_slug # if args[0] == friendly_id_config.method.to_s
           end
         end
@@ -27,7 +27,6 @@ module FriendlyId
         I18n.locale
       end
 
-
       def write_attribute *args
         #p 'write attribute'
         #p args
@@ -35,7 +34,7 @@ module FriendlyId
         super *args
         if args[0].to_s == friendly_id_config.method.to_s
           @value = args[1]
-          build_a_slug 
+          build_a_slug
         end
       end
 
