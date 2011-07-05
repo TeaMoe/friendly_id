@@ -13,10 +13,16 @@ module FriendlyId
           after_update :update_dependent_scopes
           protect_friendly_id_attributes
           extend FriendlyId::ActiveRecordAdapter::Finders unless FriendlyId.on_ar3?
-          define_method("#{friendly_id_config.method}=") do |*args|
-            #p 'setter'
-            super *args
-            build_a_slug # if args[0] == friendly_id_config.method.to_s
+          def self.method_added(name)
+            if name == :"#{friendly_id_config.method}="
+              return if @aliased
+              define_method("#{friendly_id_config.method}_with_slug=") do |*args|
+                self.name_without_slug = args.first
+                build_a_slug if args.first # if args[0] == friendly_id_config.method.to_s
+              end
+              @aliased = true
+              alias_method_chain :name=, :slug
+            end
           end
         end
       end
@@ -78,7 +84,7 @@ module FriendlyId
 
       # Build the new slug using the generated friendly id.
       def build_a_slug
-        #p' build a slug'
+        #return if errors[friendly_id_config.method]
         return unless new_slug_needed?
         #p 'new slug needed'
         raise "steht schon was anderes drin #{@slug.inspect} - #{locale}" if @slug != nil && !@slug.kind_of?(Hash)
@@ -88,16 +94,13 @@ module FriendlyId
         @slug[locale] = slugs.build :name => slug_text.to_s, :scope => friendly_id_config.scope_for(self),
           :sluggable => self, :locale => locale
         #raise @slug.inspect
-        #p @slug
         #raise locale.inspect
         #raise @slug[locale].inspect
         @new_friendly_id = @slug[locale].to_friendly_id
       end
 
       def save_slugs
-        #p 'save slugs'
         if @slug && @slug.kind_of?( Hash )
-          #p @slug
           @slug.each do |k, v|
             #p "nil #{k} => #{v}" unless v
             if v && v.new_record?
